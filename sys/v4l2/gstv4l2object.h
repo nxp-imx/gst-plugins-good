@@ -233,6 +233,8 @@ struct _GstV4l2Object {
    * the caps to reflect what was negotiated during fixation */
   gboolean skip_try_fmt_probes;
 
+  gboolean is_amphion;
+
   guint max_width;
   guint max_height;
 };
