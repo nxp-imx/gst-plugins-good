@@ -733,6 +733,8 @@ gst_v4l2_buffer_pool_streamoff (GstV4l2BufferPool * pool)
   if (!pool->streaming)
     return;
 
+  GST_OBJECT_LOCK (pool);
+
   switch (obj->mode) {
     case GST_V4L2_IO_MMAP:
     case GST_V4L2_IO_USERPTR:
@@ -774,6 +776,8 @@ gst_v4l2_buffer_pool_streamoff (GstV4l2BufferPool * pool)
       g_atomic_int_add (&pool->num_queued, -1);
     }
   }
+
+  GST_OBJECT_UNLOCK (pool);
 }
 
 static gboolean
@@ -1053,11 +1057,12 @@ gst_v4l2_buffer_pool_orphan (GstV4l2Object * v4l2object)
   GST_DEBUG_OBJECT (pool, "orphaning pool");
   gst_buffer_pool_set_active (bpool, FALSE);
 
+  gst_v4l2_buffer_pool_streamoff (pool);
+
   /* We lock to prevent racing with a return buffer in QBuf, and has a
    * workaround of not being able to use the pool hidden activation lock. */
   GST_OBJECT_LOCK (pool);
 
-  gst_v4l2_buffer_pool_streamoff (pool);
   ret = gst_v4l2_allocator_orphan (pool->vallocator);
   if (ret)
     pool->orphaned = TRUE;
@@ -1266,9 +1271,13 @@ gst_v4l2_buffer_pool_dqbuf (GstV4l2BufferPool * pool, GstBuffer ** buffer,
 
   GST_LOG_OBJECT (pool, "dequeueing a buffer");
 
+  GST_OBJECT_LOCK (pool);
+
   res = gst_v4l2_allocator_dqbuf (pool->vallocator, &group);
-  if (res == GST_V4L2_FLOW_LAST_BUFFER)
+  if (res == GST_V4L2_FLOW_LAST_BUFFER) {
+    GST_OBJECT_UNLOCK (pool);
     goto eos;
+  }
   if (res != GST_FLOW_OK)
     goto dqbuf_failed;
 
@@ -1291,10 +1300,10 @@ gst_v4l2_buffer_pool_dqbuf (GstV4l2BufferPool * pool, GstBuffer ** buffer,
 
   pool->buffers[group->buffer.index] = NULL;
   if (g_atomic_int_dec_and_test (&pool->num_queued)) {
-    GST_OBJECT_LOCK (pool);
     pool->empty = TRUE;
-    GST_OBJECT_UNLOCK (pool);
   }
+
+  GST_OBJECT_UNLOCK (pool);
 
   if (group->buffer.flags & V4L2_BUF_FLAG_LAST &&
       group->planes[0].bytesused == 0) {
@@ -1449,10 +1458,12 @@ eos:
   }
 dqbuf_failed:
   {
+    GST_OBJECT_UNLOCK (pool);
     return GST_FLOW_ERROR;
   }
 no_buffer:
   {
+    GST_OBJECT_UNLOCK (pool);
     GST_ERROR_OBJECT (pool, "No free buffer found in the pool at index %d.",
         group->buffer.index);
     return GST_FLOW_ERROR;
