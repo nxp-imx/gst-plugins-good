@@ -185,6 +185,7 @@ static GstV4L2FormatDesc gst_v4l2_formats[] = {
   {MAP_FMT (NV12M_8L128, NV12_8L128),           MAP_DRM (INVALID, INVALID),         GST_V4L2_RAW},
   {MAP_FMT (NV12M_10BE_8L128, NV12_10BE_8L128), MAP_DRM (INVALID, INVALID),         GST_V4L2_RAW},
   {MAP_FMT (NV12_10BIT, NV12_10LE40),           KNOWN_DRM_MAP,                      GST_V4L2_RAW},
+  {MAP_FMT (NV12X, NV12_10LE40),                KNOWN_DRM_MAP,                      GST_V4L2_RAW},
   {MAP_FMT (NV21M, NV21),                       KNOWN_DRM_MAP,                      GST_V4L2_RAW},
   {MAP_FMT (NV21, NV21),                        KNOWN_DRM_MAP,                      GST_V4L2_RAW},
   {MAP_FMT (NV16M, NV16),                       KNOWN_DRM_MAP,                      GST_V4L2_RAW},
@@ -1195,6 +1196,7 @@ gst_v4l2_object_format_get_rank (const struct v4l2_fmtdesc *fmt)
     case V4L2_PIX_FMT_NV12:    /* Y/CbCr 4:2:0, 12 bits per pixel */
     case V4L2_PIX_FMT_NV12M:   /* Same as NV12      */
     case V4L2_PIX_FMT_NV12_10BIT:      /* 12  Y/CbCr 4:2:0  */
+    case V4L2_PIX_FMT_NV12X:
       rank = YUV_BASE_RANK + 8;
       break;
     case V4L2_PIX_FMT_YUYV:    /* YUY2, 16 bits per pixel */
@@ -2044,6 +2046,14 @@ gst_v4l2_object_get_caps_info (GstV4l2Object * v4l2object, GstCaps * caps,
       fourcc_nc = desc->v4l2_format;
     if (fallback_desc)
       fourcc = fallback_desc->v4l2_format;
+
+    if (fourcc_nc == V4L2_PIX_FMT_NV12_10BIT) {
+      if (v4l2object->is_amphion)
+        fourcc = V4L2_PIX_FMT_NV12_10BIT;
+      else
+        fourcc = V4L2_PIX_FMT_NV12X;
+      fourcc_nc = 0;
+    }
   } else if (g_str_equal (mimetype, "video/mpegts")) {
     fourcc = V4L2_PIX_FMT_MPEG;
   } else if (g_str_equal (mimetype, "video/x-dv")) {
@@ -5442,6 +5452,12 @@ gst_v4l2_object_probe_caps (GstV4l2Object * v4l2object, GstCaps * filter)
     GstCaps *tmp;
 
     format = (struct v4l2_fmtdesc *) walk->data;
+    if (!IS_IMX8MQ () && format->pixelformat == V4L2_PIX_FMT_NV12X) {
+      GST_DEBUG_OBJECT (v4l2object->dbg_obj,
+          "skip format %" GST_FOURCC_FORMAT,
+          GST_FOURCC_ARGS (format->pixelformat));
+      continue;
+    }
 
     sysmem_tmpl =
         gst_v4l2_object_v4l2fourcc_to_bare_struct (format->pixelformat,
