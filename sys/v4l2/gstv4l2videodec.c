@@ -805,7 +805,7 @@ gst_v4l2_video_dec_finish (GstVideoDecoder * decoder)
       gst_video_decoder_drop_frame (decoder, frame);
     }
     if (self->output_flow == GST_FLOW_OK) {
-      g_warning ("%s: %i frames %u-%u left undrained after CMD_STOP, "
+      GST_WARNING ("%s: %i frames %u-%u left undrained after CMD_STOP, "
           "eos sent too early: bug in decoder -- please file a bug",
           GST_ELEMENT_NAME (decoder), counter, first, last);
     }
@@ -962,7 +962,7 @@ gst_v4l2_video_dec_loop (GstVideoDecoder * decoder)
     goto beach;
 
   if (GST_BUFFER_TIMESTAMP (buffer) % GST_SECOND != 0)
-    GST_ERROR_OBJECT (decoder,
+    GST_WARNING_OBJECT (decoder,
         "Driver bug detected - check driver with v4l2-compliance from http://git.linuxtv.org/v4l-utils.git");
   GST_LOG_OBJECT (decoder, "Got buffer for frame number %u",
       (guint32) (GST_BUFFER_TIMESTAMP (buffer) / GST_SECOND));
@@ -991,7 +991,8 @@ gst_v4l2_video_dec_loop (GstVideoDecoder * decoder)
         oldest_frame = NULL;
 
         if (!warned) {
-          g_warning ("%s: Too old frames, bug in decoder -- please file a bug",
+          GST_WARNING
+              ("%s: Too old frames, bug in decoder -- please file a bug",
               GST_ELEMENT_NAME (decoder));
           warned = TRUE;
         }
@@ -1014,7 +1015,7 @@ gst_v4l2_video_dec_loop (GstVideoDecoder * decoder)
             oldest_frame = NULL;
           }
         }
-        g_warning
+        GST_WARNING
             ("%s: %i initial frames were not dequeued: bug in decoder -- please file a bug",
             GST_ELEMENT_NAME (decoder), counter);
       }
