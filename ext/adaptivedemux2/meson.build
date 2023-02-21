@@ -34,6 +34,7 @@ adaptive_sources = [
   'mss/gstmssfragmentparser.c',
   'plugin.c',
   'gstisoff.c',
+  'gstmatroska.c',
   'gstadaptivedemux.c',
   'gstadaptivedemuxelement.c',
   'gstadaptivedemuxutils.c',
