@@ -323,6 +323,7 @@ GstStructure * gst_v4l2_object_v4l2fourcc_to_structure (guint32 fourcc);
 
 /* crop / compose */
 gboolean     gst_v4l2_object_set_crop (GstV4l2Object * obj, struct v4l2_rect *result);
+gboolean     gst_v4l2_object_streamoff (GstV4l2Object * v4l2object);
 
 /* TODO Move to proper namespace */
 /* open/close the device */
