@@ -36,6 +36,7 @@
 
 #include <string.h>
 #include <gst/gst-i18n-plugin.h>
+#include <gst/allocators/gstdmabuf.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_v4l2_video_enc_debug);
 #define GST_CAT_DEFAULT gst_v4l2_video_enc_debug
