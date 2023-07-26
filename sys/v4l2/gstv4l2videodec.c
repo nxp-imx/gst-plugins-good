@@ -358,6 +358,7 @@ gst_v4l2_video_dec_flush (GstVideoDecoder * decoder)
     return TRUE;
 
   self->output_flow = GST_FLOW_OK;
+  self->v4l2output->err_cnt = 0;
 
   gst_v4l2_object_unlock_stop (self->v4l2output);
   gst_v4l2_object_unlock_stop (self->v4l2capture);
@@ -1185,6 +1186,19 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
         &frame->input_buffer, &frame->system_frame_number);
     GST_VIDEO_DECODER_STREAM_LOCK (decoder);
 
+    /* If there are over 50 continuous frames that cannot be decoded from start
+      * or after seek, send gap event to finish preroll */
+    if (self->v4l2output->err_cnt > MAX_OUTPUT_ERROR_COUNT) {
+      gst_pad_push_event (decoder->srcpad, gst_event_new_gap (0,
+              GST_CLOCK_TIME_NONE));
+      ret = GST_FLOW_OK;
+
+      /* If OUTPUT buffer is dequeued immediately after queuing, it means this frame
+       * has been dropped, so just unref the pool and return */
+      if (!frame)
+        goto out;
+    }
+
     if (ret == GST_FLOW_FLUSHING) {
       if (gst_pad_get_task_state (GST_VIDEO_DECODER_SRC_PAD (self)) !=
           GST_TASK_STARTED)
@@ -1204,6 +1218,7 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
   gst_buffer_unref (tmp);
 
   gst_video_codec_frame_unref (frame);
+out:
   if (pool)
     gst_object_unref (pool);
   return ret;
