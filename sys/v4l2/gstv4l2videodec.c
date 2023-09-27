@@ -473,6 +473,53 @@ get_hdr10_meta (GstV4l2Object * v4l2object, struct v4l2_hdr10_meta *Hdr10Meta)
   return TRUE;
 }
 
+static void
+gst_v4l2_video_dec_decide_downscale (GstVideoDecoder * decoder)
+{
+  GstV4l2VideoDec *self = GST_V4L2_VIDEO_DEC (decoder);
+  GstV4l2Object *v4l2object = self->v4l2capture;
+  GstCaps *filter, *caps;
+  GstStructure *structure;
+  const GValue *value;
+  gint width = 0, height = 0;
+  gint src_width, src_height;
+
+  src_width = self->v4l2output->info.vinfo.width;
+  src_height = self->v4l2output->info.vinfo.height;
+
+  // get the downscale width/height from caps if have
+  filter = gst_caps_new_empty_simple ("video/x-raw");
+  caps = gst_pad_peer_query_caps (decoder->srcpad, filter);
+  structure = gst_caps_get_structure (caps, 0);
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "queried caps: %" GST_PTR_FORMAT, caps);
+
+  value = gst_structure_get_value (structure, "width");
+  if (value && G_VALUE_TYPE (value) == G_TYPE_INT)
+    width = g_value_get_int (value);
+
+  value = gst_structure_get_value (structure, "height");
+  if (value && G_VALUE_TYPE (value) == G_TYPE_INT)
+    height = g_value_get_int (value);
+
+  gst_caps_unref (filter);
+  gst_caps_unref (caps);
+
+  /* not downscale if queried size is a range */
+  if (!width || !height)
+    v4l2object->downscale = FALSE;
+
+  /* still downscale if size info is missing in caps as actual
+   * size has been parsed after source change */
+  if ((!src_width && !src_height) || (width >= src_width / 8
+          && width <= src_width && height >= src_height / 8
+          && height <= src_height)) {
+    v4l2object->downstream_width = width;
+    v4l2object->downstream_height = height;
+    v4l2object->downscale = TRUE;
+    GST_INFO_OBJECT (v4l2object->dbg_obj, "downscale to %dx%d", width, height);
+  }
+}
+
 static gboolean
 gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
 {
@@ -502,6 +549,10 @@ gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
   GST_V4L2_FPS_N (self->v4l2capture) = GST_V4L2_FPS_N (self->v4l2output);
 
   self->v4l2capture->is_g2 = self->v4l2output->is_g2;
+  self->v4l2capture->info.vinfo.width = self->v4l2output->info.vinfo.width;
+  self->v4l2capture->info.vinfo.height = self->v4l2output->info.vinfo.height;
+
+  gst_v4l2_video_dec_decide_downscale (decoder);
 
   /* For decoders G_FMT returns coded size, G_SELECTION returns visible size
    * in the compose rectangle. gst_v4l2_object_acquire_format() checks both

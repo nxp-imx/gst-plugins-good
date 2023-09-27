@@ -239,6 +239,9 @@ struct _GstV4l2Object {
 
   gboolean is_amphion;
   gboolean is_hantro;
+  guint downstream_width;
+  guint downstream_height;
+  gboolean downscale;
 
   guint max_width;
   guint max_height;
