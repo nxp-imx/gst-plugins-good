@@ -5826,8 +5826,11 @@ gst_v4l2_object_match_buffer_layout (GstV4l2Object * obj, guint n_planes,
     if (padded_height) {
       GST_DEBUG_OBJECT (obj->dbg_obj, "Padded height %u", padded_height);
 
-      obj->align.padding_bottom =
-          padded_height - GST_VIDEO_INFO_FIELD_HEIGHT (info);
+      if (V4L2_TYPE_IS_OUTPUT (obj->type))
+        padded_height = format.fmt.pix_mp.height;
+      else
+        obj->align.padding_bottom =
+            padded_height - GST_VIDEO_INFO_FIELD_HEIGHT (info);
     } else {
       GST_WARNING_OBJECT (obj->dbg_obj,
           "Failed to compute padded height; keep the default one");
