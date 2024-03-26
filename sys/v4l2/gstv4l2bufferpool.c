@@ -1373,8 +1373,6 @@ gst_v4l2_buffer_pool_dqbuf (GstV4l2BufferPool * pool, GstBuffer ** buffer,
   timestamp = GST_TIMEVAL_TO_TIME (group->buffer.timestamp);
 
   for (i = 0; i < group->n_mem; i++) {
-    const GstVideoFormatInfo *finfo = info->finfo;
-
     GST_LOG_OBJECT (pool,
         "dequeued buffer %p seq:%d (ix=%d), mem %p used %d, plane=%d, flags %08x, ts %"
         GST_TIME_FORMAT ", pool-queued=%d, buffer=%p, previous-state=%i",
@@ -1391,12 +1389,16 @@ gst_v4l2_buffer_pool_dqbuf (GstV4l2BufferPool * pool, GstBuffer ** buffer,
       /* Ensure our offset matches the expected plane size, or image size if
        * there is only one memory */
       if (group->n_mem == 1) {
-        gst_memory_resize (group->mem[0], 0, info->size + info->offset[0]);
+        if (G_LIKELY (info->size + info->offset[0] <= group->mem[0]->maxsize))
+          gst_memory_resize (group->mem[0], 0, info->size + info->offset[0]);
+        else {
+          GST_WARNING_OBJECT (pool,
+              "v4l2 provided buffer that is too big for the memory it was "
+              "writing into.");
+          gst_memory_resize (group->mem[0], 0, group->mem[0]->maxsize);
+        }
         break;
       }
-
-      if (!GST_VIDEO_FORMAT_INFO_IS_TILED (finfo))
-        gst_memory_resize (group->mem[i], 0, obj->plane_size[i]);
     }
   }
 

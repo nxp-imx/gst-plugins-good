@@ -3808,9 +3808,14 @@ gst_v4l2_object_save_format (GstV4l2Object * v4l2object,
           "Left and top padding is not permitted for tiled formats");
     memset (v4l2object->plane_size, 0, sizeof (v4l2object->plane_size));
   } else {
-    if (!gst_video_info_align_full (&info->vinfo, align,
-            v4l2object->plane_size)) {
-      GST_WARNING_OBJECT (v4l2object->dbg_obj, "Failed to align video info");
+    for (i = 0; i < finfo->n_planes; i++) {
+      gint vedge, hedge;
+
+      hedge = GST_VIDEO_FORMAT_INFO_SCALE_WIDTH (finfo, i, align->padding_left);
+      vedge = GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT (finfo, i, align->padding_top);
+
+      info->vinfo.offset[i] += (vedge * info->vinfo.stride[i]) +
+          (hedge * GST_VIDEO_INFO_COMP_PSTRIDE (&info->vinfo, i));
     }
   }
 
