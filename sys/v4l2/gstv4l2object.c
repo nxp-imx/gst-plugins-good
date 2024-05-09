@@ -576,6 +576,7 @@ gst_v4l2_object_new (GstElement * element,
   v4l2object->can_poll_device = TRUE;
   v4l2object->crop_width = 0;
   v4l2object->crop_height = 0;
+  g_atomic_int_set (&v4l2object->seek, FALSE);
 
   /* We now disable libv4l2 by default, but have an env to enable it. */
 #ifdef HAVE_LIBV4L2

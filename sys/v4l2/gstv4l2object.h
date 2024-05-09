@@ -239,6 +239,7 @@ struct _GstV4l2Object {
   gboolean is_hantro;
   gint crop_width;
   gint crop_height;
+  gboolean seek;
 
   guint max_width;
   guint max_height;
