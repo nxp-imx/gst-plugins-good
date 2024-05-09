@@ -711,6 +711,10 @@ gst_v4l2_buffer_pool_streamon (GstV4l2BufferPool * pool)
       if (obj->ioctl (pool->video_fd, VIDIOC_STREAMON, &obj->type) < 0)
         goto streamon_failed;
 
+      /* finish seek via OUTPUT streamon */
+      if (V4L2_TYPE_IS_OUTPUT (obj->type))
+        g_atomic_int_set (&obj->seek, FALSE);
+
       pool->streaming = TRUE;
 
       GST_DEBUG_OBJECT (pool, "Started streaming");
@@ -749,6 +753,10 @@ gst_v4l2_buffer_pool_streamoff (GstV4l2BufferPool * pool)
       if (obj->ioctl (pool->video_fd, VIDIOC_STREAMOFF, &obj->type) < 0)
         GST_WARNING_OBJECT (pool, "STREAMOFF failed with errno %d (%s)",
             errno, g_strerror (errno));
+
+      /* start seek via OUTPUT streamoff */
+      if (V4L2_TYPE_IS_OUTPUT (obj->type))
+        g_atomic_int_set (&obj->seek, TRUE);
 
       pool->streaming = FALSE;
 

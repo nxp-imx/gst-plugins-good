@@ -244,6 +244,7 @@ struct _GstV4l2Object {
   guint downstream_width;
   guint downstream_height;
   gboolean downscale;
+  gboolean seek;
 
   guint max_width;
   guint max_height;
