@@ -1150,6 +1150,7 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
   gboolean processed = FALSE;
   GstBuffer *tmp;
   GstTaskState task_state;
+  gboolean seek = g_atomic_int_get (&self->v4l2output->seek);
 
   GST_DEBUG_OBJECT (self, "Handling frame %d", frame->system_frame_number);
 
@@ -1165,7 +1166,8 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
   }
 
   pool = gst_v4l2_object_get_buffer_pool (self->v4l2output);
-  if (G_UNLIKELY (!gst_buffer_pool_is_active (pool))) {
+  if (G_UNLIKELY (!gst_buffer_pool_is_active (pool)
+          || !GST_V4L2_BUFFER_POOL_IS_STREAMING (pool))) {
     GstBuffer *codec_data;
     GstStructure *config = gst_buffer_pool_get_config (pool);
     guint min = MAX (self->v4l2output->min_buffers,
@@ -1188,32 +1190,33 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
     }
 
     /* Ensure input internal pool is active */
+    if (!gst_buffer_pool_is_active (pool)) {
+      gst_buffer_pool_config_set_params (config, self->input_state->caps,
+          self->v4l2output->info.vinfo.size, min, max);
 
-    gst_buffer_pool_config_set_params (config, self->input_state->caps,
-        self->v4l2output->info.vinfo.size, min, max);
+      /* There is no reason to refuse this config */
+      if (!gst_buffer_pool_set_config (pool, config)) {
+        config = gst_buffer_pool_get_config (pool);
 
-    /* There is no reason to refuse this config */
-    if (!gst_buffer_pool_set_config (pool, config)) {
-      config = gst_buffer_pool_get_config (pool);
+        if (!gst_buffer_pool_config_validate_params (config,
+                self->input_state->caps,
+                self->v4l2output->info.vinfo.size, min, max)) {
+          gst_structure_free (config);
+          goto activate_failed;
+        }
 
-      if (!gst_buffer_pool_config_validate_params (config,
-              self->input_state->caps,
-              self->v4l2output->info.vinfo.size, min, max)) {
-        gst_structure_free (config);
-        goto activate_failed;
+        if (!gst_buffer_pool_set_config (pool, config))
+          goto activate_failed;
       }
 
-      if (!gst_buffer_pool_set_config (pool, config))
+      /* Ensure to unlock capture, as it may be flushing due to previous
+      * unlock/stop calls */
+      gst_v4l2_object_unlock_stop (self->v4l2output);
+      gst_v4l2_object_unlock_stop (self->v4l2capture);
+
+      if (!gst_buffer_pool_set_active (pool, TRUE))
         goto activate_failed;
     }
-
-    /* Ensure to unlock capture, as it may be flushing due to previous
-     * unlock/stop calls */
-    gst_v4l2_object_unlock_stop (self->v4l2output);
-    gst_v4l2_object_unlock_stop (self->v4l2capture);
-
-    if (!gst_buffer_pool_set_active (pool, TRUE))
-      goto activate_failed;
 
     g_signal_connect_swapped (self->v4l2output->pool, "output-error-dequeued",
         G_CALLBACK (gst_v4l2_video_dec_drop_frame), decoder);
@@ -1229,7 +1232,8 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
     gst_buffer_unref (codec_data);
 
     /* Only wait for source change if the formats supports it */
-    if (!GST_V4L2_IS_ACTIVE (self->v4l2capture) &&
+    /* No need to wait for source change after seek */
+    if (!GST_V4L2_IS_ACTIVE (self->v4l2capture) && !seek &&
         self->v4l2output->fmtdesc->flags & V4L2_FMT_FLAG_DYN_RESOLUTION) {
       gst_v4l2_object_unlock_stop (self->v4l2capture);
       self->wait_for_source_change = TRUE;
