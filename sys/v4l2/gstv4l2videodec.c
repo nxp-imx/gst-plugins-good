@@ -860,8 +860,15 @@ gst_v4l2_video_dec_set_selection (GstVideoDecoder * decoder)
   if (value && G_VALUE_TYPE (value) == G_TYPE_INT)
     height = g_value_get_int (value);
 
-  if (width >= src_width / 8 && width <= src_width &&
-      height >= src_height / 8 && height <= src_height) {
+  /* not downscale if queried size is a range */
+  if (!width || !height)
+    goto out;
+
+  /* still downscale if size info is missing in caps as actual
+   * size has been parsed after source change */
+  if ((!src_width && !src_height) || (width >= src_width / 8
+          && width <= src_width && height >= src_height / 8
+          && height <= src_height)) {
     GST_INFO_OBJECT (v4l2object->dbg_obj, "want to s_selection %dx%d", width,
         height);
 
