@@ -884,7 +884,7 @@ gst_v4l2_buffer_pool_start (GstBufferPool * bpool)
         GST_WARNING_OBJECT (pool,
             "Uncertain or not enough buffers, enabling copy threshold");
         min_buffers = count;
-        copy_threshold = min_latency;
+        copy_threshold = GST_V4L2_MIN_BUFFERS (obj);
       }
 
       break;
