@@ -1336,12 +1336,14 @@ gst_v4l2_allocator_qbuf (GstV4l2Allocator * allocator,
   g_return_val_if_fail (g_atomic_int_get (&allocator->active), FALSE);
 
   /* update sizes */
-  if (V4L2_TYPE_IS_MULTIPLANAR (obj->type)) {
-    for (i = 0; i < group->n_mem; i++)
-      group->planes[i].bytesused =
-          gst_memory_get_sizes (group->mem[i], NULL, NULL);
-  } else {
-    group->buffer.bytesused = gst_memory_get_sizes (group->mem[0], NULL, NULL);
+  if (obj->mode != GST_V4L2_IO_DMABUF_IMPORT) {
+    if (V4L2_TYPE_IS_MULTIPLANAR (obj->type)) {
+      for (i = 0; i < group->n_mem; i++)
+        group->planes[i].bytesused =
+            gst_memory_get_sizes (group->mem[i], NULL, NULL);
+    } else {
+      group->buffer.bytesused = gst_memory_get_sizes (group->mem[0], NULL, NULL);
+    }
   }
 
   /* Ensure the memory will stay around and is RO */
