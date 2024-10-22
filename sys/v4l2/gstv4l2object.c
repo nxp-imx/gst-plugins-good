@@ -6613,8 +6613,19 @@ again:
     }
   }
 
-  if (gst_poll_fd_has_error (v4l2object->poll, &v4l2object->pollfd))
-    goto select_error;
+  if (gst_poll_fd_has_error (v4l2object->poll, &v4l2object->pollfd)) {
+    GstBufferPool *pool = gst_v4l2_object_get_buffer_pool (v4l2object);
+    if (V4L2_TYPE_IS_OUTPUT (v4l2object->type) || (pool
+            && GST_V4L2_BUFFER_POOL_IS_STREAMING (pool))) {
+      if (pool)
+        gst_object_unref (pool);
+      goto select_error;
+    } else {
+      if (pool)
+        gst_object_unref (pool);
+      goto again;
+    }
+  }
 
   /* PRI is used to signal that events are available */
   if (gst_poll_fd_has_pri (v4l2object->poll, &v4l2object->pollfd)) {
