@@ -574,8 +574,9 @@ gst_v4l2_object_new (GstElement * element,
 
   v4l2object->poll = gst_poll_new (TRUE);
   v4l2object->can_poll_device = TRUE;
-  v4l2object->crop_width = 0;
-  v4l2object->crop_height = 0;
+  v4l2object->downstream_width = 0;
+  v4l2object->downstream_height = 0;
+  v4l2object->downscale = FALSE;
   g_atomic_int_set (&v4l2object->seek, FALSE);
 
   /* We now disable libv4l2 by default, but have an env to enable it. */
@@ -4783,6 +4784,32 @@ gst_v4l2_object_try_format (GstV4l2Object * v4l2object, GstCaps * caps,
   return gst_v4l2_object_set_format_full (v4l2object, caps, TRUE, error);
 }
 
+static void
+gst_v4l2_object_adjust_downscale_size (GstV4l2Object * v4l2object,
+    struct v4l2_format * fmt, struct v4l2_rect * r, guint * wanted_width,
+    guint * wanted_height)
+{
+  guint src_width, src_height;
+  guint padded_width, padded_height;
+  guint downscale_width, downscale_height;
+
+  src_width = v4l2object->info.width;
+  src_height = v4l2object->info.height;
+  padded_width = fmt->fmt.pix.width;
+  padded_height = fmt->fmt.pix.height;
+  downscale_width = v4l2object->downstream_width;
+  downscale_height = v4l2object->downstream_height;
+
+  *wanted_width = padded_width * downscale_width / src_width;
+  *wanted_height = padded_height * downscale_height / src_height;
+
+  r->left = r->left * (*wanted_width) / padded_width;
+  r->top = r->top * (*wanted_height) / padded_height;
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "downscale size adjusted to %dx%d",
+      *wanted_width, *wanted_height);
+}
+
 /**
  * gst_v4l2_object_acquire_format:
  * @v4l2object: the object
@@ -4805,6 +4832,7 @@ gst_v4l2_object_acquire_format (GstV4l2Object * v4l2object, GstVideoInfo * info)
   guint width, height;
   GstVideoAlignment align;
   GstVideoInterlaceMode interlace_mode;
+  gint crop_width = 0, crop_height = 0;
 
   gst_video_info_init (info);
   gst_video_alignment_reset (&align);
@@ -4850,18 +4878,57 @@ gst_v4l2_object_acquire_format (GstV4l2Object * v4l2object, GstVideoInfo * info)
     if (v4l2object->ioctl (v4l2object->video_fd, VIDIOC_G_CROP, &crop) >= 0)
       r = &crop.c;
   }
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "crop info: %d,%d,%u,%u",
+      r->left, r->top, r->width, r->height);
+
+  if (v4l2object->downscale) {
+    struct v4l2_selection s_sel;
+    guint wanted_width, wanted_height;
+
+    // set selection with downscale size
+    gst_v4l2_object_adjust_downscale_size (v4l2object, &fmt, r, &wanted_width,
+        &wanted_height);
+    GST_INFO_OBJECT (v4l2object->dbg_obj, "(top, left) adjusted to %dx%d",
+        r->left, r->top);
+
+    memset (&s_sel, 0, sizeof (struct v4l2_selection));
+    s_sel.type = v4l2object->type;
+    s_sel.target = V4L2_SEL_TGT_COMPOSE;
+    s_sel.flags = V4L2_SEL_FLAG_GE;
+    s_sel.r.left = 0;
+    s_sel.r.top = 0;
+    s_sel.r.width = wanted_width;
+    s_sel.r.height = wanted_height;
+
+    if (v4l2object->ioctl (v4l2object->video_fd, VIDIOC_S_SELECTION,
+            &s_sel) < 0) {
+      GST_WARNING_OBJECT (v4l2object->dbg_obj,
+          "Failed to set downscale size with VIDIOC_S_SELECTION: %s",
+          g_strerror (errno));
+    } else {
+      r->width = s_sel.r.width;
+      r->height = s_sel.r.height;
+      crop_width = s_sel.r.width - v4l2object->downstream_width;
+      crop_height = s_sel.r.height - v4l2object->downstream_height;
+
+      GST_INFO_OBJECT (v4l2object->dbg_obj,
+          "s_selection return %dx%d with extra crop width %d, height %d",
+          s_sel.r.width, s_sel.r.height, crop_width, crop_height);
+    }
+  }
+
   if (r) {
     align.padding_left = r->left;
     align.padding_top = r->top;
     align.padding_right =
-        (gint) width - (gint) r->width - r->left - v4l2object->crop_width;
+        (gint) width - (gint) r->width - r->left + crop_width;
     align.padding_bottom =
-        (gint) height - (gint) r->height - r->top - v4l2object->crop_height;
-    width = (gint) r->width + v4l2object->crop_width;
-    height = (gint) r->height + v4l2object->crop_height;
+        (gint) height - (gint) r->height - r->top + crop_height;
+    width = (gint) r->width - crop_width;
+    height = (gint) r->height - crop_height;
     GST_INFO_OBJECT (v4l2object->dbg_obj,
-        "caps size: %ux%u, padding size: %ux%u", width, height,
-        align.padding_right, align.padding_bottom);
+        "caps size: %ux%u, padding size: %u,%u,%u,%u", width, height,
+        align.padding_left, align.padding_right, align.padding_top, align.padding_bottom);
   }
 
   switch (fmt.fmt.pix.field) {

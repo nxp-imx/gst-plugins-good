@@ -237,8 +237,9 @@ struct _GstV4l2Object {
   gboolean skip_try_fmt_probes;
   gboolean is_amphion;
   gboolean is_hantro;
-  gint crop_width;
-  gint crop_height;
+  guint downstream_width;
+  guint downstream_height;
+  gboolean downscale;
   gboolean seek;
 
   guint max_width;
