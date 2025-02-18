@@ -1540,7 +1540,6 @@ gst_soup_http_src_got_headers (GstSoupHTTPSrc * src, SoupMessage * msg)
     if (!src->have_size || (src->content_size != newsize)) {
       src->content_size = newsize;
       src->have_size = TRUE;
-      src->seekable = TRUE;
       GST_DEBUG_OBJECT (src, "size = %" G_GUINT64_FORMAT, src->content_size);
 
       basesrc = GST_BASE_SRC_CAST (src);
@@ -1550,13 +1549,13 @@ gst_soup_http_src_got_headers (GstSoupHTTPSrc * src, SoupMessage * msg)
     }
   }
 
-  /* If the server reports Accept-Ranges: none we don't have to try
-   * doing range requests at all
+  /* If the server reports Accept-Ranges: "bytes" means seekable, "none"
+   * means non-seekable which we don't have to try doing range requests at all
    */
   if ((accept_ranges =
           _soup_message_headers_get_one (response_headers, "Accept-Ranges"))) {
-    if (g_ascii_strcasecmp (accept_ranges, "none") == 0)
-      src->seekable = FALSE;
+    if (g_ascii_strcasecmp (accept_ranges, "bytes") == 0)
+      src->seekable = TRUE;
   }
 
   /* Icecast stuff */
