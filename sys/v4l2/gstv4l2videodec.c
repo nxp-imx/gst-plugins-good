@@ -514,7 +514,7 @@ gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
   GstV4l2Error error = GST_V4L2_ERROR_INIT;
   GstVideoInfoDmaDrm info;
   GstVideoCodecState *output_state;
-  GstCaps *acquired_caps, *acquired_drm_caps;
+  GstCaps *acquired_caps, *acquired_drm_caps = NULL;
   GstCaps *fixation_caps, *available_caps, *caps, *filter;
   gboolean active;
   GstBufferPool *cpool;
@@ -559,7 +559,8 @@ gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
   /* Create caps from the acquired format, removing the format fields */
   fixation_caps = gst_caps_new_empty ();
 
-  acquired_drm_caps = gst_video_info_dma_drm_to_caps (&info);
+  if (info.drm_fourcc)
+    acquired_drm_caps = gst_video_info_dma_drm_to_caps (&info);
   if (acquired_drm_caps) {
     GST_DEBUG_OBJECT (self, "Acquired DRM caps: %" GST_PTR_FORMAT,
         acquired_drm_caps);
