@@ -2120,10 +2120,14 @@ gst_v4l2_object_get_caps_info (GstV4l2Object * v4l2object, GstCaps * caps,
       desc =
           gst_v4l2_object_get_desc_from_video_format (format, &fallback_desc);
     }
-    if (desc)
-      fourcc_nc = desc->v4l2_format;
-    if (fallback_desc)
-      fourcc = fallback_desc->v4l2_format;
+    if (desc) {
+      if (fallback_desc) {
+        fourcc_nc = desc->v4l2_format;
+        fourcc = fallback_desc->v4l2_format;
+      } else
+        /* if no fallback, treat the found v4l2_format as single plane */
+        fourcc = desc->v4l2_format;
+    }
 
     if (fourcc_nc == V4L2_PIX_FMT_NV12_10BIT) {
       if (v4l2object->is_amphion)
