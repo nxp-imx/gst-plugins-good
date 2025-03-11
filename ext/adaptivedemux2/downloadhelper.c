@@ -93,6 +93,9 @@ free_transfer (DownloadHelperTransfer * transfer)
   if (transfer->blocking)
     g_cond_clear (&transfer->cond);
 
+  /* unref cancellable object */
+  g_clear_object (&transfer->cancellable);
+
   g_object_unref (transfer->msg);
   g_free (transfer->read_buffer);
   g_free (transfer);
