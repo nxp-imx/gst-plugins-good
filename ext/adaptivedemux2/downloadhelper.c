@@ -745,8 +745,11 @@ finish_transfer_error:
   transfer->read_buffer = NULL;
 
   download_request_unlock (request);
-  finish_transfer_task (dh, transfer_task, NULL);
+  /* Should unref GInputStream before finishing the task,
+   * otherwise it would lead to segfaults when unrefing
+   * GInputStream. */
   g_object_unref (in);
+  finish_transfer_task (dh, transfer_task, NULL);
 }
 
 static inline gchar
