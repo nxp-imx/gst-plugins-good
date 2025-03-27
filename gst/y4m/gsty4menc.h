@@ -23,6 +23,7 @@
 
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 
 G_BEGIN_DECLS
 

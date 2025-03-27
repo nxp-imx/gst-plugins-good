@@ -39,10 +39,10 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
 #include <string.h>
-#include <gst/gst.h>
-#include <gst/video/video.h>
-#include "gsty4mencode.h"
+
+#include "gsty4menc.h"
 
 /* Filter signals and args */
 enum
@@ -390,15 +390,3 @@ not_negotiated:
     return GST_FLOW_NOT_NEGOTIATED;
   }
 }
-
-static gboolean
-plugin_init (GstPlugin * plugin)
-{
-  return GST_ELEMENT_REGISTER (y4menc, plugin);
-}
-
-GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
-    GST_VERSION_MINOR,
-    y4menc,
-    "Encodes a YUV frame into the yuv4mpeg format (mjpegtools)",
-    plugin_init, VERSION, GST_LICENSE, GST_PACKAGE_NAME, GST_PACKAGE_ORIGIN)
