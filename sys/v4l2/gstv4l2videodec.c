@@ -478,7 +478,7 @@ gst_v4l2_video_dec_decide_downscale (GstVideoDecoder * decoder)
 {
   GstV4l2VideoDec *self = GST_V4L2_VIDEO_DEC (decoder);
   GstV4l2Object *v4l2object = self->v4l2capture;
-  GstCaps *filter, *caps;
+  GstCaps *caps;
   GstStructure *structure;
   const GValue *value;
   gint width = 0, height = 0;
@@ -488,8 +488,10 @@ gst_v4l2_video_dec_decide_downscale (GstVideoDecoder * decoder)
   src_height = self->v4l2output->info.vinfo.height;
 
   // get the downscale width/height from caps if have
-  filter = gst_caps_new_empty_simple ("video/x-raw");
-  caps = gst_pad_peer_query_caps (decoder->srcpad, filter);
+  caps = gst_pad_peer_query_caps (decoder->srcpad, NULL);
+  if (!caps || gst_caps_is_any (caps))
+    goto done;
+
   structure = gst_caps_get_structure (caps, 0);
   GST_INFO_OBJECT (v4l2object->dbg_obj, "queried caps: %" GST_PTR_FORMAT, caps);
 
@@ -500,9 +502,6 @@ gst_v4l2_video_dec_decide_downscale (GstVideoDecoder * decoder)
   value = gst_structure_get_value (structure, "height");
   if (value && G_VALUE_TYPE (value) == G_TYPE_INT)
     height = g_value_get_int (value);
-
-  gst_caps_unref (filter);
-  gst_caps_unref (caps);
 
   /* not downscale if queried size is a range */
   if (!width || !height)
@@ -518,6 +517,10 @@ gst_v4l2_video_dec_decide_downscale (GstVideoDecoder * decoder)
     v4l2object->downscale = TRUE;
     GST_INFO_OBJECT (v4l2object->dbg_obj, "downscale to %dx%d", width, height);
   }
+
+done:
+  if (caps)
+    gst_caps_unref (caps);
 }
 
 static gboolean
