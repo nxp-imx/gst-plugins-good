@@ -5592,7 +5592,9 @@ gst_v4l2_object_probe_caps (GstV4l2Object * v4l2object, GstCaps * filter)
   /* Add a variant of the caps without the colorimetry so that we can negotiate
      successfully even if the detected colorimetry from upstream is not supported
      by the device */
-  if (caps) {
+  /* Do not add non colorimetry caps for mxc-jpeg driver, since mxc-jpeg driver
+     only supports 1:4:7:1 for YUV formats and sRGB for RGB formats */
+  if (caps && strcmp ((char *) v4l2object->vcap.driver, "mxc-jpeg codec")) {
     add_non_colorimetry_caps (v4l2object, caps);
   }
 
