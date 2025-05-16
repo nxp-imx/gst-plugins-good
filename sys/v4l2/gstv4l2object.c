@@ -582,6 +582,18 @@ gst_v4l2_object_install_m2m_properties_helper (GObjectClass * gobject_class)
           GST_PARAM_MUTABLE_PLAYING));
 }
 
+void
+gst_v4l2_object_install_roi_properties_helper (GObjectClass * gobject_class)
+{
+  /* Support roi encoding for 8mm, 8mp, 95, 952... */
+  if (imx_chip_code () >= CC_MX8MM) {
+    g_object_class_install_property (gobject_class, PROP_ENCODER_ROI,
+        g_param_spec_boxed ("roi-controls", "Roi Extra Controls",
+            "Enable encoder roi by setting (left,top,width,height,qp_delta)",
+            GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  }
+}
+
 /* Support for 32bit off_t, this wrapper is casting off_t to gint64 */
 #ifdef HAVE_LIBV4L2
 #if SIZEOF_OFF_T < 8
@@ -863,6 +875,15 @@ gst_v4l2_object_set_property_helper (GstV4l2Object * v4l2object,
     case PROP_FORCE_ASPECT_RATIO:
       v4l2object->keep_aspect = g_value_get_boolean (value);
       break;
+    case PROP_ENCODER_ROI:
+      const GstStructure *s = gst_value_get_structure (value);
+
+      if (v4l2object->roi_controls)
+        gst_structure_free (v4l2object->roi_controls);
+
+      v4l2object->roi_controls = s ? gst_structure_copy (s) : NULL;
+      gst_v4l2_set_roi_controls (v4l2object->roi_controls, &v4l2object->roi);
+      break;
     default:
       return FALSE;
       break;
@@ -959,6 +980,9 @@ gst_v4l2_object_get_property_helper (GstV4l2Object * v4l2object,
       break;
     case PROP_FORCE_ASPECT_RATIO:
       g_value_set_boolean (value, v4l2object->keep_aspect);
+      break;
+    case PROP_ENCODER_ROI:
+      gst_value_set_structure (value, v4l2object->roi_controls);
       break;
     default:
       return FALSE;
@@ -6133,7 +6157,7 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
 
   /* aovid copy Amphion tiled frame buffer for un-active video track */
   /* also to avoid copy Hantro frame buffer when link v4l2 decoder with fakesink */
-  if (obj->is_amphion || obj->is_hantro || IS_IMX95 ()) {
+  if (imx_chip_code () >= CC_MX8QM) {
     can_share_own_pool = TRUE;
     if (min < GST_V4L2_MIN_BUFFERS (obj))
       min = GST_V4L2_MIN_BUFFERS (obj);

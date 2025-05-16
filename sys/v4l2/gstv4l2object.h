@@ -207,6 +207,7 @@ struct _GstV4l2Object {
   gchar *channel;
   gulong frequency;
   GstStructure *extra_controls;
+  GstStructure *roi_controls;
   gboolean keep_aspect;
   GValue *par;
 
@@ -246,6 +247,8 @@ struct _GstV4l2Object {
 
   guint max_width;
   guint max_height;
+
+  struct v4l2_enc_roi_param roi;
 };
 
 struct _GstV4l2ObjectClassHelper {
@@ -270,7 +273,8 @@ GType gst_v4l2_object_get_type (void);
     PROP_CAPTURE_IO_MODE,     \
     PROP_EXTRA_CONTROLS,      \
     PROP_PIXEL_ASPECT_RATIO,  \
-    PROP_FORCE_ASPECT_RATIO
+    PROP_FORCE_ASPECT_RATIO,  \
+    PROP_ENCODER_ROI
 
 /* create/destroy */
 GstV4l2Object*  gst_v4l2_object_new       (GstElement * element,
@@ -289,6 +293,7 @@ void         gst_v4l2_object_install_properties_helper (GObjectClass * gobject_c
                                                         const char * default_device);
 
 void         gst_v4l2_object_install_m2m_properties_helper (GObjectClass * gobject_class);
+void         gst_v4l2_object_install_roi_properties_helper (GObjectClass * gobject_class);
 
 gboolean     gst_v4l2_object_set_property_helper       (GstV4l2Object * v4l2object,
                                                         guint prop_id,
@@ -380,6 +385,8 @@ gboolean     gst_v4l2_get_attribute   (GstV4l2Object * v4l2object, int attribute
 gboolean     gst_v4l2_set_attribute   (GstV4l2Object * v4l2object, int attribute, const int value);
 gboolean     gst_v4l2_set_string_attribute (GstV4l2Object * v4l2object, int attribute_num, const char *value);
 gboolean     gst_v4l2_set_controls    (GstV4l2Object * v4l2object, GstStructure * controls);
+void         gst_v4l2_set_roi_controls (GstStructure * s, struct v4l2_enc_roi_param * roi);
+gboolean     gst_v4l2_set_encoder_roi (GstV4l2Object * v4l2object);
 
 /* events */
 gboolean     gst_v4l2_subscribe_event (GstV4l2Object * v4l2object, guint32 event, guint32 id);

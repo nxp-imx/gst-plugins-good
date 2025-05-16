@@ -368,6 +368,9 @@ gst_v4l2_video_enc_set_format (GstVideoEncoder * encoder,
     return FALSE;
   }
 
+  if (self->v4l2output->roi.enable)
+    gst_v4l2_set_encoder_roi (self->v4l2output);
+
   /* best effort */
   gst_v4l2_object_setup_padding (self->v4l2output);
 
@@ -1192,6 +1195,7 @@ gst_v4l2_video_enc_class_init (GstV4l2VideoEncClass * klass)
       GST_DEBUG_FUNCPTR (gst_v4l2_video_enc_change_state);
 
   gst_v4l2_object_install_m2m_properties_helper (gobject_class);
+  gst_v4l2_object_install_roi_properties_helper (gobject_class);
 }
 
 static void
