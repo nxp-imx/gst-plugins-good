@@ -208,6 +208,8 @@ enum v4l2_colorfx {
 #define V4L2_CID_CODEC_CLASS			(V4L2_CTRL_CLASS_CODEC | 1)
 
 /* ctrls & extension ctrls definitions */
+#define V4L2_CID_ROI_COUNT			(V4L2_CID_USER_IMX_BASE + 2)
+#define V4L2_CID_ROI				(V4L2_CID_USER_IMX_BASE + 3)
 #define V4L2_CID_HDR10META			(V4L2_CID_USER_IMX_BASE + 6)
 
 /*  MPEG streams, specific to multiplexed streams */

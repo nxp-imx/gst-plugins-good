@@ -1821,6 +1821,20 @@ struct v4l2_hdr10_meta {
 	__u32 maxFrameAverageLightLevel;
 };
 
+#define V4L2_MAX_ROI_REGIONS            8
+struct v4l2_enc_roi_param {
+	struct v4l2_rect rect;
+	__u32 enable;
+	__s32 qp_delta;
+	__u32 reserved[2];
+};
+struct v4l2_enc_roi_params {
+	__u32 num_roi_regions;
+	struct v4l2_enc_roi_param roi_params[V4L2_MAX_ROI_REGIONS];
+	__u32 config_store;
+	__u32 reserved[2];
+};
+
 #define V4L2_CTRL_ID_MASK	  (0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
 #define V4L2_CTRL_ID2WHICH(id)    ((id) & 0x0fff0000UL)
