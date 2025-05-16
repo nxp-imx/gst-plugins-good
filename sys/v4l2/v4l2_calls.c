@@ -1102,6 +1102,112 @@ gst_v4l2_set_controls (GstV4l2Object * v4l2object, GstStructure * controls)
   return gst_structure_foreach_id_str (controls, set_control, v4l2object);
 }
 
+static int
+gst_v4l2_get_ctrl (GstV4l2Object * v4l2object, int id, int *value)
+{
+  struct v4l2_queryctrl qctrl;
+  struct v4l2_control ctrl;
+
+  memset (&qctrl, 0, sizeof (qctrl));
+  qctrl.id = id;
+  if (ioctl (v4l2object->video_fd, VIDIOC_QUERYCTRL, &qctrl) < 0)
+    return FALSE;
+
+  memset (&ctrl, 0, sizeof (ctrl));
+  ctrl.id = id;
+  if (ioctl (v4l2object->video_fd, VIDIOC_G_CTRL, &ctrl) < 0)
+    return FALSE;
+  else
+    *value = ctrl.value;
+
+  return TRUE;
+}
+
+void
+gst_v4l2_set_roi_controls (GstStructure * s, struct v4l2_enc_roi_param *roi)
+{
+  g_return_if_fail (s != NULL);
+
+  if (gst_structure_has_field (s, "left")) {
+    gst_structure_get (s, "left", G_TYPE_INT, &roi->rect.left, NULL);
+  }
+
+  if (gst_structure_has_field (s, "top")) {
+    gst_structure_get (s, "top", G_TYPE_INT, &roi->rect.top, NULL);
+  }
+
+  if (gst_structure_has_field (s, "width")) {
+    gst_structure_get (s, "width", G_TYPE_INT, &roi->rect.width, NULL);
+  }
+
+  if (gst_structure_has_field (s, "height")) {
+    gst_structure_get (s, "height", G_TYPE_INT, &roi->rect.height, NULL);
+  }
+
+  if (gst_structure_has_field (s, "qp_delta")) {
+    gst_structure_get (s, "qp_delta", G_TYPE_INT, &roi->qp_delta, NULL);
+  }
+
+  if (roi->rect.left < 0 || roi->rect.top < 0 || roi->rect.width <= 0 ||
+      roi->rect.height <= 0 || roi->qp_delta == 0)
+    roi->enable = FALSE;
+  else
+    roi->enable = TRUE;
+}
+
+gboolean
+gst_v4l2_set_encoder_roi (GstV4l2Object * v4l2object)
+{
+  struct v4l2_enc_roi_param *param = &v4l2object->roi;
+  struct v4l2_ext_control ctrl;
+  struct v4l2_ext_controls ctrls;
+  struct v4l2_enc_roi_params roi;
+  int roi_count = 0;
+
+  if (!param || !param->enable)
+    return FALSE;
+
+  if (!gst_v4l2_get_ctrl (v4l2object, V4L2_CID_ROI_COUNT, &roi_count)) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi count fail");
+    return FALSE;
+  }
+
+  memset (&ctrls, 0, sizeof (ctrls));
+  memset (&ctrl, 0, sizeof (ctrl));
+  memset (&roi, 0, sizeof (roi));
+
+  ctrls.controls = &ctrl;
+  ctrls.count = 1;
+
+  ctrl.id = V4L2_CID_ROI;
+  ctrl.ptr = (void *) &roi;
+  ctrl.size = sizeof (roi);
+
+  roi.num_roi_regions = roi_count;
+  roi.roi_params[0] = *param;
+
+  if (ioctl (v4l2object->video_fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Set roi fail");
+    return FALSE;
+  }
+
+  memset (&roi, 0, sizeof (roi));
+  if (ioctl (v4l2object->video_fd, VIDIOC_G_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi fail");
+    return FALSE;
+  }
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "roi param: %d [0]%d %d,%d %dx%d %d",
+      roi.num_roi_regions,
+      roi.roi_params[0].enable,
+      roi.roi_params[0].rect.left,
+      roi.roi_params[0].rect.top,
+      roi.roi_params[0].rect.width,
+      roi.roi_params[0].rect.height, roi.roi_params[0].qp_delta);
+
+  return TRUE;
+}
+
 gboolean
 gst_v4l2_get_input (GstV4l2Object * v4l2object, guint32 * input)
 {
