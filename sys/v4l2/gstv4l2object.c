@@ -6038,7 +6038,7 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
       gst_query_find_allocation_meta (query, GST_DMABUF_META_API_TYPE,
       &alloc_index);
 
-  if (IS_IMX8MQ () || IS_AMPHION ()) {
+  if (obj->is_hantro || obj->is_amphion) {
     if (alloc_has_meta) {
       const GstStructure *params;
       gint j, len;
