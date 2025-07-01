@@ -3,6 +3,7 @@
  * (c) 2005 Michal Benes <michal.benes@xeris.cz>
  * (c) 2008 Sebastian Dröge <sebastian.droege@collabora.co.uk>
  * (c) 2011 Mark Nauwelaerts <mark.nauwelaerts@collabora.co.uk>
+ * Copyright 2020 NXP
  *
  * matroska-mux.c: matroska file/stream muxer
  *
