@@ -768,6 +768,18 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
 
     if (gst_is_dmabuf_memory (gst_buffer_peek_memory (frame->input_buffer, 0))
         && (frame->system_frame_number == 0)) {
+      GstBufferPool *opool = gst_v4l2_object_get_buffer_pool (self->v4l2output);
+
+      /* If bufferpool is acticated by upstream but not used, still can change mode */
+      if (gst_buffer_pool_is_active (opool)
+          && frame->input_buffer->pool != opool) {
+        if (!gst_buffer_pool_set_active (opool, FALSE)) {
+          if (opool)
+            gst_object_unref (opool);
+          goto activate_failed;
+        }
+      }
+
       self->v4l2output->mode = GST_V4L2_IO_DMABUF_IMPORT;
       if (!gst_v4l2_object_try_import (self->v4l2output, frame->input_buffer)) {
         if (mode == GST_V4L2_IO_DMABUF_IMPORT)
@@ -775,6 +787,8 @@ gst_v4l2_video_enc_handle_frame (GstVideoEncoder * encoder,
         else
           self->v4l2output->mode = mode;
       }
+      if (opool)
+        gst_object_unref (opool);
     }
   }
   /* It is possible that a system buffer is received when the number of
