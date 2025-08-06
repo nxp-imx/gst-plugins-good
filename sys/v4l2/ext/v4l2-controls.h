@@ -208,8 +208,6 @@ enum v4l2_colorfx {
 #define V4L2_CID_CODEC_CLASS			(V4L2_CTRL_CLASS_CODEC | 1)
 
 /* ctrls & extension ctrls definitions */
-#define V4L2_CID_ROI_COUNT			(V4L2_CID_USER_IMX_BASE + 2)
-#define V4L2_CID_ROI				(V4L2_CID_USER_IMX_BASE + 3)
 #define V4L2_CID_HDR10META			(V4L2_CID_USER_IMX_BASE + 6)
 
 /*  MPEG streams, specific to multiplexed streams */
@@ -885,6 +883,25 @@ enum v4l2_mpeg_video_av1_level {
 	V4L2_MPEG_VIDEO_AV1_LEVEL_7_2 = 22,
 	V4L2_MPEG_VIDEO_AV1_LEVEL_7_3 = 23
 };
+
+enum v4l2_mpeg_video_roi_mode {
+       V4L2_MPEG_VIDEO_ROI_MODE_NONE,
+       V4L2_MPEG_VIDEO_ROI_MODE_RECT_DELTA_QP,
+       V4L2_MPEG_VIDEO_ROI_MODE_RECT_PRIORITY,
+       V4L2_MPEG_VIDEO_ROI_MODE_MAP_DELTA_QP,
+       V4L2_MPEG_VIDEO_ROI_MODE_MAP_ABSOLUTE_QP
+};
+
+#define V4L2_CID_MPEG_VIDEO_ROI_MODE                   (V4L2_CID_CODEC_BASE + 658)
+#define V4L2_CID_MPEG_VIDEO_ROI_BLOCK_SIZE             (V4L2_CID_CODEC_BASE + 659)
+#define V4L2_CID_MPEG_VIDEO_ROI_RECT                   (V4L2_CID_CODEC_BASE + 660)
+#define V4L2_CID_MPEG_VIDEO_ROI_RECT_DELTA_QP          (V4L2_CID_CODEC_BASE + 661)
+#define V4L2_CID_MPEG_VIDEO_ROI_RECT_PRIORITY          (V4L2_CID_CODEC_BASE + 662)
+#define V4L2_CID_MPEG_VIDEO_ROI_MAP_DELTA_QP           (V4L2_CID_CODEC_BASE + 663)
+#define V4L2_CID_MPEG_VIDEO_ROI_MAP_ABSOLUTE_QP                (V4L2_CID_CODEC_BASE + 664)
+
+#define V4L2_CTRL_WHICH_MIN_VAL   0x0f020000
+#define V4L2_CTRL_WHICH_MAX_VAL   0x0f030000
 
 /*  MPEG-class control IDs specific to the CX2341x driver as defined by V4L2 */
 #define V4L2_CID_CODEC_CX2341X_BASE				(V4L2_CTRL_CLASS_CODEC | 0x1000)
