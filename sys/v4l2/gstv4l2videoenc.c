@@ -124,9 +124,6 @@ gst_v4l2_video_enc_open (GstVideoEncoder * encoder)
   if (!gst_v4l2_object_open_shared (self->v4l2capture, self->v4l2output))
     goto failure;
 
-  if (self->v4l2output->roi.enable)
-    gst_v4l2_set_encoder_roi (self->v4l2output);
-
   self->probed_sinkcaps = gst_v4l2_object_probe_caps (self->v4l2output,
       gst_v4l2_object_get_raw_caps ());
 
@@ -370,6 +367,9 @@ gst_v4l2_video_enc_set_format (GstVideoEncoder * encoder,
     gst_v4l2_error (self, &error);
     return FALSE;
   }
+
+  if (self->v4l2output->roi.enable)
+    gst_v4l2_set_encoder_roi (self->v4l2output);
 
   /* best effort */
   gst_v4l2_object_setup_padding (self->v4l2output);

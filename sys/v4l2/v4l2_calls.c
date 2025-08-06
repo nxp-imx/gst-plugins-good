@@ -979,7 +979,7 @@ gst_v4l2_set_attribute (GstV4l2Object * v4l2object,
   /* ERRORS */
 ctrl_failed:
   {
-    GST_WARNING_OBJECT (v4l2object,
+    GST_WARNING_OBJECT (v4l2object->dbg_obj,
         _("Failed to set value %d for control %d on device '%s'."),
         value, attribute_num, v4l2object->videodev);
     return FALSE;
@@ -1102,27 +1102,6 @@ gst_v4l2_set_controls (GstV4l2Object * v4l2object, GstStructure * controls)
   return gst_structure_foreach_id_str (controls, set_control, v4l2object);
 }
 
-static int
-gst_v4l2_get_ctrl (GstV4l2Object * v4l2object, int id, int *value)
-{
-  struct v4l2_queryctrl qctrl;
-  struct v4l2_control ctrl;
-
-  memset (&qctrl, 0, sizeof (qctrl));
-  qctrl.id = id;
-  if (ioctl (v4l2object->video_fd, VIDIOC_QUERYCTRL, &qctrl) < 0)
-    return FALSE;
-
-  memset (&ctrl, 0, sizeof (ctrl));
-  ctrl.id = id;
-  if (ioctl (v4l2object->video_fd, VIDIOC_G_CTRL, &ctrl) < 0)
-    return FALSE;
-  else
-    *value = ctrl.value;
-
-  return TRUE;
-}
-
 void
 gst_v4l2_set_roi_controls (GstStructure * s, struct v4l2_enc_roi_param *roi)
 {
@@ -1155,57 +1134,244 @@ gst_v4l2_set_roi_controls (GstStructure * s, struct v4l2_enc_roi_param *roi)
     roi->enable = TRUE;
 }
 
-gboolean
-gst_v4l2_set_encoder_roi (GstV4l2Object * v4l2object)
+static gboolean
+gst_v4l2_set_roi_rect (GstV4l2Object * v4l2object)
 {
-  struct v4l2_enc_roi_param *param = &v4l2object->roi;
-  struct v4l2_ext_control ctrl;
+  struct v4l2_query_ext_ctrl queryctr;
+  struct v4l2_ext_control ctrl[2];
   struct v4l2_ext_controls ctrls;
-  struct v4l2_enc_roi_params roi;
-  int roi_count = 0;
+  struct v4l2_rect region[1], rect_max;
+  int32_t delta_qp[1], delta_qp_min, delta_qp_max;
+  struct v4l2_enc_roi_param *roi = &v4l2object->roi;
 
-  if (!param || !param->enable)
-    return FALSE;
-
-  if (!gst_v4l2_get_ctrl (v4l2object, V4L2_CID_ROI_COUNT, &roi_count)) {
-    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi count fail");
+  queryctr.id = V4L2_CID_MPEG_VIDEO_ROI_RECT;
+  if (ioctl (v4l2object->video_fd, VIDIOC_QUERY_EXT_CTRL, &queryctr) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Query roi rect fail, %s",
+        strerror (errno));
     return FALSE;
   }
 
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "min = %lld, max = %lld, "
+      "elem_size = %d, dims[0] = %d, flags = 0x%x",
+      queryctr.minimum, queryctr.maximum, queryctr.elem_size,
+      queryctr.dims[0], queryctr.flags);
+
   memset (&ctrls, 0, sizeof (ctrls));
   memset (&ctrl, 0, sizeof (ctrl));
-  memset (&roi, 0, sizeof (roi));
+
+  ctrls.which = V4L2_CTRL_WHICH_MIN_VAL;
+  ctrls.controls = ctrl;
+  ctrls.count = 2;
+
+  ctrl[0].id = V4L2_CID_MPEG_VIDEO_ROI_RECT;
+  ctrl[0].ptr = (void *) region;
+  ctrl[0].size = sizeof (struct v4l2_rect);
+  ctrl[1].id = V4L2_CID_MPEG_VIDEO_ROI_RECT_DELTA_QP;
+  ctrl[1].ptr = (void *) delta_qp;
+  ctrl[1].size = sizeof (int32_t);
+  if (ioctl (v4l2object->video_fd, VIDIOC_G_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi rect min fail, %s",
+        strerror (errno));
+    return FALSE;
+  }
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj,
+      "roi rect min (%d,%d,%d,%d), delta_qp: %d", region[0].left, region[0].top,
+      region[0].width, region[0].height, delta_qp[0]);
+  delta_qp_min = delta_qp[0];
+
+  ctrls.which = V4L2_CTRL_WHICH_MAX_VAL;
+  if (ioctl (v4l2object->video_fd, VIDIOC_G_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi rect max fail, %s",
+        strerror (errno));
+    return FALSE;
+  }
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj,
+      "roi rect max (%d,%d,%d,%d), delta_qp: %d", region[0].left, region[0].top,
+      region[0].width, region[0].height, delta_qp[0]);
+  rect_max = region[0];
+  delta_qp_max = delta_qp[0];
+
+  region[0].left = CLAMP (roi->rect.left, 0, rect_max.width);
+  region[0].top = CLAMP (roi->rect.top, 0, rect_max.height);
+  region[0].width = CLAMP ((int32_t)roi->rect.width, 0, rect_max.width - region[0].left);
+  region[0].height =
+      CLAMP ((int32_t)roi->rect.height, 0, rect_max.height - region[0].top);
+  delta_qp[0] = CLAMP (roi->qp_delta, delta_qp_min, delta_qp_max);
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "roi rect param: %d [0]%d,%d %dx%d %d",
+      roi->enable,
+      region[0].left,
+      region[0].top, region[0].width, region[0].height, delta_qp[0]);
+
+  ctrls.which = 0;
+  ctrl[0].ptr = (void *) region;
+  ctrl[0].size = sizeof (region);
+  ctrl[1].ptr = (void *) delta_qp;
+  ctrl[1].size = sizeof (delta_qp);
+
+  if (ioctl (v4l2object->video_fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Set roi rect fail, %s",
+        strerror (errno));
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+static gboolean
+gst_v4l2_get_map_block_size (GstV4l2Object * v4l2object, struct v4l2_area *ctu)
+{
+  struct v4l2_ext_control ctrl;
+  struct v4l2_ext_controls ctrls;
+  struct v4l2_area area;
+
+  memset (&ctrls, 0, sizeof (ctrls));
+  memset (&ctrl, 0, sizeof (ctrl));
+  memset (&area, 0, sizeof (area));
 
   ctrls.controls = &ctrl;
   ctrls.count = 1;
 
-  ctrl.id = V4L2_CID_ROI;
-  ctrl.ptr = (void *) &roi;
-  ctrl.size = sizeof (roi);
-
-  roi.num_roi_regions = roi_count;
-  roi.roi_params[0] = *param;
-
-  if (ioctl (v4l2object->video_fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0) {
-    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Set roi fail");
-    return FALSE;
-  }
-
-  memset (&roi, 0, sizeof (roi));
+  ctrl.id = V4L2_CID_MPEG_VIDEO_ROI_BLOCK_SIZE;
+  ctrl.ptr = (void *) &area;
+  ctrl.size = sizeof (area);
   if (ioctl (v4l2object->video_fd, VIDIOC_G_EXT_CTRLS, &ctrls) < 0) {
-    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi fail");
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi block size fail, %s",
+        strerror (errno));
     return FALSE;
   }
 
-  GST_INFO_OBJECT (v4l2object->dbg_obj, "roi param: %d [0]%d %d,%d %dx%d %d",
-      roi.num_roi_regions,
-      roi.roi_params[0].enable,
-      roi.roi_params[0].rect.left,
-      roi.roi_params[0].rect.top,
-      roi.roi_params[0].rect.width,
-      roi.roi_params[0].rect.height, roi.roi_params[0].qp_delta);
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "block size: %dx%d",
+      area.width, area.height);
+  *ctu = area;
 
   return TRUE;
+}
+
+static gboolean
+gst_v4l2_set_roi_map (GstV4l2Object * v4l2object, struct v4l2_area *ctu)
+{
+  struct v4l2_query_ext_ctrl queryctr;
+  struct v4l2_ext_control ctrl;
+  struct v4l2_ext_controls ctrls;
+  struct v4l2_enc_roi_param *roi = &v4l2object->roi;
+  __s32 delta_qp, delta_qp_min, delta_qp_max;
+  __s32 *maps;
+  int columns, rows, map_size;
+  int left_columns, right_columns, top_rows, bottom_rows;
+
+  queryctr.id = V4L2_CID_MPEG_VIDEO_ROI_MAP_DELTA_QP;
+  if (ioctl (v4l2object->video_fd, VIDIOC_QUERY_EXT_CTRL, &queryctr) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Query roi map fail, %s",
+        strerror (errno));
+    return FALSE;
+  }
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "min = %lld, max = %lld, "
+      "elem_size = %d, dims[0] = %d, flags = 0x%x",
+      queryctr.minimum, queryctr.maximum, queryctr.elem_size,
+      queryctr.dims[0], queryctr.flags);
+
+  memset (&ctrls, 0, sizeof (ctrls));
+  memset (&ctrl, 0, sizeof (ctrl));
+  ctrls.which = V4L2_CTRL_WHICH_MIN_VAL;
+  ctrls.controls = &ctrl;
+  ctrls.count = 1;
+
+  ctrl.id = V4L2_CID_MPEG_VIDEO_ROI_MAP_DELTA_QP;
+  ctrl.ptr = (void *) &delta_qp;
+  ctrl.size = sizeof (delta_qp);
+  if (ioctl (v4l2object->video_fd, VIDIOC_G_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi map min fail, %s",
+        strerror (errno));
+    return FALSE;
+  }
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "roi map min delta_qp: %d", delta_qp);
+  delta_qp_min = delta_qp;
+
+  ctrls.which = V4L2_CTRL_WHICH_MAX_VAL;
+  if (ioctl (v4l2object->video_fd, VIDIOC_G_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Get roi map max fail, %s",
+        strerror (errno));
+    return FALSE;
+  }
+  GST_INFO_OBJECT (v4l2object->dbg_obj, "roi map max delta_qp: %d", delta_qp);
+  delta_qp_max = delta_qp;
+
+  columns = (v4l2object->info.vinfo.width + (ctu->width - 1)) / ctu->width;
+  rows = (v4l2object->info.vinfo.height + (ctu->height - 1)) / ctu->height;
+  map_size = columns * rows;
+
+  left_columns = (roi->rect.left + (ctu->width - 1)) / ctu->width;
+  right_columns =
+      (roi->rect.left + roi->rect.width + (ctu->width - 1)) / ctu->width;
+  top_rows = (roi->rect.top + (ctu->height - 1)) / ctu->height;
+  bottom_rows =
+      (roi->rect.top + roi->rect.height + (ctu->height - 1)) / ctu->height;
+  delta_qp = CLAMP (roi->qp_delta, delta_qp_min, delta_qp_max);
+
+  GST_INFO_OBJECT (v4l2object->dbg_obj,
+      "roi map param: (%d,%d,%dx%d) of (0,0,%dx%d), %d", left_columns, top_rows,
+      right_columns - left_columns, bottom_rows - top_rows, columns, rows,
+      delta_qp);
+
+  maps = g_malloc (sizeof (*maps) * map_size);
+  if (!maps)
+    return FALSE;
+  memset (maps, 0, sizeof (*maps) * map_size);
+
+  for (int j = 0; j < rows; j++) {
+    if (j < top_rows || j > bottom_rows)
+      continue;
+    for (int i = 0; i < columns; i++) {
+      if (i < left_columns || i > right_columns)
+        continue;
+      maps[j * columns + i] = delta_qp;
+    }
+  }
+
+  ctrls.which = 0;
+  ctrl.ptr = (void *) maps;
+  ctrl.size = sizeof (*maps) * map_size;
+  if (ioctl (v4l2object->video_fd, VIDIOC_S_EXT_CTRLS, &ctrls) < 0) {
+    GST_WARNING_OBJECT (v4l2object->dbg_obj, "Set roi map fail, %s",
+        strerror (errno));
+    g_free (maps);
+    return FALSE;
+  }
+
+  g_free (maps);
+  return TRUE;
+}
+
+gboolean
+gst_v4l2_set_encoder_roi (GstV4l2Object * v4l2object)
+{
+  struct v4l2_enc_roi_param *param = &v4l2object->roi;
+  struct v4l2_area ctu;
+
+  if (!param || !param->enable)
+    return FALSE;
+
+  gst_v4l2_set_attribute (v4l2object, V4L2_CID_MPEG_VIDEO_ROI_MODE, 
+      V4L2_MPEG_VIDEO_ROI_MODE_RECT_DELTA_QP);
+  if (gst_v4l2_set_roi_rect (v4l2object)) {
+    GST_INFO_OBJECT (v4l2object->dbg_obj, "Set RECT roi success");
+    return TRUE;
+  }
+
+  gst_v4l2_set_attribute (v4l2object, V4L2_CID_MPEG_VIDEO_ROI_MODE, 
+      V4L2_MPEG_VIDEO_ROI_MODE_MAP_DELTA_QP);
+  if (gst_v4l2_get_map_block_size (v4l2object, &ctu)
+      && gst_v4l2_set_roi_map (v4l2object, &ctu)) {
+    GST_INFO_OBJECT (v4l2object->dbg_obj, "Set MAP roi success");
+    return TRUE;
+  }
+
+  GST_WARNING_OBJECT (v4l2object->dbg_obj, "Set Encoder roi fail!");
+  return FALSE;
 }
 
 gboolean
