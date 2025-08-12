@@ -837,6 +837,7 @@ gst_v4l2_video_dec_finish (GstVideoDecoder * decoder)
   gst_v4l2_object_unlock (self->v4l2capture);
   gst_pad_stop_task (decoder->srcpad);
   self->draining = FALSE;
+  self->colorspace_change = FALSE;
   GST_VIDEO_DECODER_STREAM_LOCK (decoder);
 
   if (ret == GST_FLOW_FLUSHING)
@@ -1127,11 +1128,26 @@ beach:
     return;
   }
 
+  if (ret == GST_V4L2_FLOW_COLORSPACE_CHANGE) {
+    ret = GST_V4L2_FLOW_RESOLUTION_CHANGE;
+    GST_VIDEO_DECODER_STREAM_LOCK (decoder);
+    self->colorspace_change = TRUE;
+    GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
+    GST_INFO_OBJECT (decoder, "Received colorspace change");
+    return;
+  }
+
   if (ret == GST_V4L2_FLOW_LAST_BUFFER) {
     GST_VIDEO_DECODER_STREAM_LOCK (decoder);
     if (self->draining) {
       self->draining = FALSE;
       gst_v4l2_object_stop (self->v4l2capture);
+      GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
+      return;
+    }
+    if (self->colorspace_change) {
+      self->colorspace_change = FALSE;
+      gst_v4l2_decoder_cmd (self->v4l2output, V4L2_DEC_CMD_START, 0);
       GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
       return;
     }
@@ -1265,6 +1281,7 @@ gst_v4l2_video_dec_handle_frame (GstVideoDecoder * decoder,
      * processing to unlock input if draining, or prevent potential block */
     self->output_flow = GST_FLOW_FLUSHING;
     self->draining = FALSE;
+    self->colorspace_change = FALSE;
     if (!gst_pad_start_task (decoder->srcpad,
             (GstTaskFunction) gst_v4l2_video_dec_loop, self, NULL))
       goto start_task_failed;

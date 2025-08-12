@@ -67,6 +67,7 @@ struct _GstV4l2VideoDec
   /* Source Change Events */
   gboolean wait_for_source_change;
   gboolean draining;
+  gboolean colorspace_change;
 
   /* Capabilities */
   gboolean supports_source_change;
