@@ -836,8 +836,6 @@ gst_v4l2_video_dec_finish (GstVideoDecoder * decoder)
    * occurred. */
   gst_v4l2_object_unlock (self->v4l2capture);
   gst_pad_stop_task (decoder->srcpad);
-  self->draining = FALSE;
-  self->colorspace_change = FALSE;
   GST_VIDEO_DECODER_STREAM_LOCK (decoder);
 
   if (ret == GST_FLOW_FLUSHING)
