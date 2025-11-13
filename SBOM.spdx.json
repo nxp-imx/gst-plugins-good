@@ -1,0 +1,79 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "creationInfo": {
+    "created": "2025-11-12T06:52:15Z",
+    "creators": [
+      "Organization: NXP"
+    ],
+    "licenseListVersion": "3.20"
+  },
+  "name": "gst-plugins-good-LF_6.12.49_2.2.0",
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://nxp.com/spdx/25f0e55b-881e-4391-8f24-757ee6fb2a08",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-package-25f0e55b-881e-4391-8f24-757ee6fb2a08",
+      "name": "gst-plugins-good",
+      "versionInfo": "LF_6.12.49_2.2.0",
+      "licenseConcluded": "(LGPL-2.1-or-later)",
+      "licenseDeclared": "(LGPL-2.1-or-later)",
+      "downloadLocation": "https://github.com/nxp-imx/gst-plugins-good -b lf-6.12.49-2.2.0",
+      "originator": "Organization: NXP",
+      "supplier": "NOASSERTION",
+      "externalRefs": [],
+      "filesAnalyzed": false
+    },
+    {
+      "SPDXID": "SPDXRef-package-9a4ac84e-9830-48f3-bc35-a596632d9cd3",
+      "name": "GStreamer",
+      "versionInfo": "1.26.6",
+      "licenseConcluded": "LGPL-2.1-or-later",
+      "licenseDeclared": "(LGPL-2.0-or-later OR GPL-2.0-or-later)",
+      "homepage": "https://gstreamer.freedesktop.org/",
+      "downloadLocation": "http://http.debian.net/debian/pool/main/g/gst-plugins-good1.0",
+      "originator": "Organization: debian",
+      "supplier": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:gstreamer:good_plug-ins:1.26.6:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        },
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:deb/debian/gst-plugins-good1.0@1.26.6-1",
+          "referenceType": "purl"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:gstreamer_project:gstreamer:1.26.6:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceLocator": "cpe:2.3:a:gstreamer:gstreamer:1.26.6:*:*:*:*:*:*:*",
+          "referenceType": "cpe23Type"
+        },
+        {
+          "referenceCategory": "OTHER",
+          "referenceLocator": "9b3c663c-1e2f-414f-aec1-592a1408f4c1",
+          "referenceType": "BlackDuck-ComponentOrigin"
+        }
+      ],
+      "filesAnalyzed": false
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-package-25f0e55b-881e-4391-8f24-757ee6fb2a08"
+    },
+    {
+      "spdxElementId": "SPDXRef-package-25f0e55b-881e-4391-8f24-757ee6fb2a08",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-package-9a4ac84e-9830-48f3-bc35-a596632d9cd3"
+    }
+  ]
+}
