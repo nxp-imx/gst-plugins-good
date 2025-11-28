@@ -3963,14 +3963,15 @@ field_to_str (enum v4l2_field f)
 }
 
 static guint
-calculate_max_sizeimage (GstV4l2Object * v4l2object, guint pixel_bitdepth)
+calculate_max_sizeimage (GstV4l2Object * v4l2object, guint pixel_bitdepth,
+    gint width, gint height, gboolean size_in_caps)
 {
-  guint max_width, max_height;
   guint sizeimage;
 
-  max_width = v4l2object->max_width;
-  max_height = v4l2object->max_height;
-  sizeimage = max_width * max_height * (pixel_bitdepth / 8) * (3 / 2);
+  if (!size_in_caps)
+    return ENCODED_BUFFER_MAX_SIZE;
+
+  sizeimage = width * height * pixel_bitdepth * 3 / 2 / 8;
 
   return CLAMP (sizeimage, ENCODED_BUFFER_MIN_SIZE, ENCODED_BUFFER_MAX_SIZE);
 }
@@ -4021,6 +4022,7 @@ gst_v4l2_object_set_format_full (GstV4l2Object * v4l2object, GstCaps * caps,
   GstStructure *s;
   gboolean disable_interlacing = FALSE;
   gboolean disable_colorimetry = FALSE;
+  gboolean size_in_caps = TRUE;
 
   g_return_val_if_fail (!v4l2object->skip_try_fmt_probes ||
       gst_caps_is_writable (caps), FALSE);
@@ -4049,6 +4051,7 @@ gst_v4l2_object_set_format_full (GstV4l2Object * v4l2object, GstCaps * caps,
   if (V4L2_TYPE_IS_OUTPUT (v4l2object->type) && width == 0 && height == 0) {
     width = GST_V4L2_DEFAULT_WIDTH;
     height = GST_V4L2_DEFAULT_HEIGHT;
+    size_in_caps = FALSE;
   }
   fps_n = GST_VIDEO_INFO_FPS_N (&info.vinfo);
   fps_d = GST_VIDEO_INFO_FPS_D (&info.vinfo);
@@ -4268,7 +4271,8 @@ gst_v4l2_object_set_format_full (GstV4l2Object * v4l2object, GstCaps * caps,
 
     if (GST_VIDEO_INFO_FORMAT (&info.vinfo) == GST_VIDEO_FORMAT_ENCODED)
       format.fmt.pix_mp.plane_fmt[0].sizeimage =
-          calculate_max_sizeimage (v4l2object, pixel_bitdepth);
+          calculate_max_sizeimage (v4l2object, pixel_bitdepth, width, height,
+          size_in_caps);
   } else {
     gint stride = GST_VIDEO_INFO_PLANE_STRIDE (&info.vinfo, 0);
 
@@ -4288,7 +4292,8 @@ gst_v4l2_object_set_format_full (GstV4l2Object * v4l2object, GstCaps * caps,
 
     if (GST_VIDEO_INFO_FORMAT (&info.vinfo) == GST_VIDEO_FORMAT_ENCODED)
       format.fmt.pix.sizeimage =
-          calculate_max_sizeimage (v4l2object, pixel_bitdepth);
+          calculate_max_sizeimage (v4l2object, pixel_bitdepth, width, height,
+          size_in_caps);
   }
 
   GST_DEBUG_OBJECT (v4l2object->dbg_obj, "Desired format is %dx%d, format "
