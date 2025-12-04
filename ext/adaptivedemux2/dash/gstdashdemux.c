@@ -320,7 +320,7 @@ enum
 #define DEFAULT_MAX_VIDEO_FRAMERATE_N     0
 #define DEFAULT_MAX_VIDEO_FRAMERATE_D     1
 #define DEFAULT_PRESENTATION_DELAY     "10s"    /* 10s */
-#define DEFAULT_START_BITRATE             0
+#define DEFAULT_START_BITRATE             (125 * 1024 * 1024)
 
 /* Clock drift compensation for live streams */
 #define SLOW_CLOCK_UPDATE_INTERVAL  (1000000 * 30 * 60) /* 30 minutes */
