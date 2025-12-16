@@ -546,7 +546,8 @@ gst_v4l2_object_install_m2m_properties_helper (GObjectClass * gobject_class)
 void
 gst_v4l2_object_install_roi_properties_helper (GObjectClass * gobject_class)
 {
-  if (IS_HANTRO () || IS_IMX95 ()) {
+  /* Support roi encoding for 8mm, 8mp, 95, 952... */
+  if (imx_chip_code () >= CC_MX8MM) {
     g_object_class_install_property (gobject_class, PROP_ENCODER_ROI,
         g_param_spec_boxed ("roi-controls", "Roi Extra Controls",
             "Enable encoder roi by setting (left,top,width,height,qp_delta)",
@@ -6134,7 +6135,7 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
 
   /* aovid copy Amphion tiled frame buffer for un-active video track */
   /* also to avoid copy Hantro frame buffer when link v4l2 decoder with fakesink */
-  if (obj->is_amphion || obj->is_hantro || IS_IMX95 ()) {
+  if (imx_chip_code () >= CC_MX8QM) {
     can_share_own_pool = TRUE;
     if (min < GST_V4L2_MIN_BUFFERS (obj))
       min = GST_V4L2_MIN_BUFFERS (obj);
