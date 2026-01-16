@@ -919,6 +919,7 @@ gst_v4l2_transform_prepare_output_buffer (GstBaseTransform * trans,
   GstBufferPool *pool = gst_v4l2_object_get_buffer_pool (self->v4l2output);
   GstFlowReturn ret = GST_FLOW_OK;
   GstBaseTransformClass *bclass = GST_BASE_TRANSFORM_CLASS (parent_class);
+  GstVideoCropMeta *cmeta;
 
   if (gst_base_transform_is_passthrough (trans)) {
     GST_DEBUG_OBJECT (self, "Passthrough, no need to do anything");
@@ -997,6 +998,12 @@ gst_v4l2_transform_prepare_output_buffer (GstBaseTransform * trans,
       GST_ELEMENT_WARNING (self, STREAM, NOT_IMPLEMENTED,
           ("could not copy metadata"), (NULL));
     }
+
+  cmeta = gst_buffer_add_video_crop_meta (*outbuf);
+  cmeta->x = self->v4l2capture->align.padding_left;
+  cmeta->y = self->v4l2capture->align.padding_top;
+  cmeta->width = self->v4l2capture->info.vinfo.width;
+  cmeta->height = self->v4l2capture->info.vinfo.height;
 
 beach:
   g_object_unref (pool);
