@@ -1575,7 +1575,9 @@ gst_pulseringbuffer_commit (GstAudioRingBuffer * buf, guint64 * sample,
       pbuf->m_towrite = 0;
       pbuf->m_offset = offset;  /* keep track of current offset */
 
-      if (offset != pbuf->m_lastoffset) {
+      /* Do not enter while loop when committing the first audio ring buffer,
+       * as there may be no timing info */
+      if (pbuf->m_lastoffset != 0 && offset != pbuf->m_lastoffset) {
         /* Check the position of the data to be written. If it's
         * greater than the buffer boundary, need write silent data
         * firstly in the current write index to avoid overflow */
