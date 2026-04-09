@@ -6707,18 +6707,16 @@ again:
       goto again;
     }
 
-    if (event.u.src_change.changes & V4L2_EVENT_SRC_CH_RESOLUTION) {
-      if (v4l2object->formats)
-        gst_v4l2_object_clear_format_list (v4l2object);
-
-      return GST_V4L2_FLOW_RESOLUTION_CHANGE;
-    } else if (event.u.src_change.changes & V4L2_EVENT_SRC_CH_COLORSPACE) {
-      return GST_V4L2_FLOW_COLORSPACE_CHANGE;
-    } else {
+    if ((event.u.src_change.changes & V4L2_EVENT_SRC_CH_RESOLUTION) == 0) {
       GST_DEBUG_OBJECT (v4l2object->dbg_obj,
           "Received non-resolution source-change, ignoring.");
       goto again;
     }
+
+    if (v4l2object->formats)
+      gst_v4l2_object_clear_format_list (v4l2object);
+
+    return GST_V4L2_FLOW_RESOLUTION_CHANGE;
   }
 
   if (ret == 0)

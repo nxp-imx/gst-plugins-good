@@ -58,10 +58,6 @@ G_BEGIN_DECLS
  * resolution change flag set was received. */
 #define GST_V4L2_FLOW_RESOLUTION_CHANGE GST_FLOW_CUSTOM_SUCCESS_2
 
-/* This flow return is used to indicate that a SOURCE_CHANGE event with the
- * colorspace change flag set was received. */
-#define GST_V4L2_FLOW_COLORSPACE_CHANGE (GST_FLOW_CUSTOM_SUCCESS + 3)
-
 struct _GstV4l2BufferPool
 {
   GstBufferPool parent;

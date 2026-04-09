@@ -1325,11 +1325,6 @@ gst_v4l2_buffer_pool_dqbuf (GstV4l2BufferPool * pool, GstBuffer ** buffer,
     goto done;
   }
 
-  if (res == GST_V4L2_FLOW_COLORSPACE_CHANGE) {
-    GST_INFO_OBJECT (pool, "Colorspace change detected.");
-    goto done;
-  }
-
   GST_LOG_OBJECT (pool, "dequeueing a buffer");
 
   GST_OBJECT_LOCK (pool);
