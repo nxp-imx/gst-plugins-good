@@ -34,7 +34,6 @@
 #include "gstv4l2object.h"
 #include "gstv4l2videodec.h"
 #include "ext/drm_fourcc.h"
-#include "gstimxcommon.h"
 
 #include "gstv4l2h264codec.h"
 #include "gstv4l2h265codec.h"
@@ -1093,12 +1092,12 @@ gst_v4l2_video_dec_loop (GstVideoDecoder * decoder)
       cmeta->height = self->v4l2capture->info.vinfo.height;
     }
 
-    if (IS_IMX8MQ () && self->v4l2capture->is_hantro) {
+    if (self->v4l2capture->is_hantro) {
       guint64 drm_modifier = self->v4l2capture->drm_modifier;
       gst_buffer_add_dmabuf_meta (frame->output_buffer, drm_modifier);
       GST_DEBUG_OBJECT (decoder, "Add drm modifier: %" G_GUINT64_FORMAT,
           drm_modifier);
-    } else if (IS_AMPHION () && self->v4l2capture->is_amphion) {
+    } else if (self->v4l2capture->is_amphion) {
       guint64 drm_modifier = DRM_FORMAT_MOD_AMPHION_TILED;
       gst_buffer_add_dmabuf_meta (frame->output_buffer, drm_modifier);
       GST_DEBUG_OBJECT (decoder, "Add drm modifier: %" G_GUINT64_FORMAT,

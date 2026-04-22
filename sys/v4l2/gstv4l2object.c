@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <stdio.h>
 
 
 #ifdef HAVE_GUDEV
@@ -39,7 +40,6 @@
 #include "gstv4l2object.h"
 #include "gstv4l2tuner.h"
 #include "gstv4l2colorbalance.h"
-#include "gstimxcommon.h"
 
 #include <glib/gi18n-lib.h>
 
@@ -592,12 +592,10 @@ void
 gst_v4l2_object_install_roi_properties_helper (GObjectClass * gobject_class)
 {
   /* Support roi encoding for 8mm, 8mp, 95, 952... */
-  if (imx_chip_code () >= CC_MX8MM) {
-    g_object_class_install_property (gobject_class, PROP_ENCODER_ROI,
-        g_param_spec_boxed ("roi-controls", "Roi Extra Controls",
-            "Enable encoder roi by setting (left,top,width,height,qp_delta)",
-            GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  }
+  g_object_class_install_property (gobject_class, PROP_ENCODER_ROI,
+      g_param_spec_boxed ("roi-controls", "Roi Extra Controls",
+          "Enable encoder roi by setting (left,top,width,height,qp_delta)",
+          GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 /* Support for 32bit off_t, this wrapper is casting off_t to gint64 */
@@ -5596,6 +5594,8 @@ gst_v4l2_object_probe_caps (GstV4l2Object * v4l2object, GstCaps * filter)
   GSList *formats;
   guint32 fourcc = 0;
   gboolean enable_dmabuf = FALSE;
+  gboolean is_mx8mq = FALSE;
+  GstElement *soc = NULL;
 
   if (v4l2object->fmtdesc)
     fourcc = GST_V4L2_PIXELFORMAT (v4l2object);
@@ -5658,13 +5658,19 @@ gst_v4l2_object_probe_caps (GstV4l2Object * v4l2object, GstCaps * filter)
     }
   }
 
+  soc = gst_element_factory_make ("imxsocfeatures", NULL);
+  if (soc) {
+    g_signal_emit_by_name (soc, "is-chip", "MX8MQ", &is_mx8mq);
+    gst_object_unref (soc);
+  }
+
   for (walk = formats; walk; walk = walk->next) {
     struct v4l2_fmtdesc *format;
     GstStructure *sysmem_tmpl, *dmabuf_tmpl = NULL;
     GstCaps *tmp;
 
     format = (struct v4l2_fmtdesc *) walk->data;
-    if (!IS_IMX8MQ () && format->pixelformat == V4L2_PIX_FMT_NV12X) {
+    if (!is_mx8mq && format->pixelformat == V4L2_PIX_FMT_NV12X) {
       GST_DEBUG_OBJECT (v4l2object->dbg_obj,
           "skip format %" GST_FOURCC_FORMAT,
           GST_FOURCC_ARGS (format->pixelformat));
@@ -6120,10 +6126,9 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
             guint64 drm_modifier = g_value_get_uint64 (val);
             GST_DEBUG_OBJECT (obj->dbg_obj,
                 "dmabuf meta has modifier: %" G_GUINT64_FORMAT, drm_modifier);
-            if (IS_AMPHION () && drm_modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
+            if (drm_modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
               obj->drm_modifier = drm_modifier;
-            } else if (IS_IMX8MQ ()
-                && drm_modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED
+            } else if (drm_modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED
                 && obj->is_g2 == TRUE) {
               obj->drm_modifier = drm_modifier;
               if (obj->format.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12X)
@@ -6146,13 +6151,12 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
               " };", &drm_modifier);
           GST_DEBUG_OBJECT (obj->dbg_obj,
               "dmabuf meta has modifier: %" G_GUINT64_FORMAT, drm_modifier);
-          if (IS_AMPHION () && drm_modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
+          if (drm_modifier == DRM_FORMAT_MOD_AMPHION_TILED) {
             GST_DEBUG_OBJECT (obj->dbg_obj,
                 "video sink support modifier: %" G_GUINT64_FORMAT,
                 drm_modifier);
             obj->drm_modifier = drm_modifier;
-          } else if (IS_IMX8MQ ()
-              && drm_modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED
+          } else if (drm_modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED
               && obj->is_g2 == TRUE) {
             GST_DEBUG_OBJECT (obj->dbg_obj,
                 "video sink support modifier: %" G_GUINT64_FORMAT,
@@ -6190,15 +6194,11 @@ gst_v4l2_object_decide_allocation (GstV4l2Object * obj, GstQuery * query)
       gst_v4l2_object_match_buffer_layout_from_struct (obj, params, caps, size);
   }
 
-  can_share_own_pool = (has_video_meta || !obj->need_video_meta);
-
   /* aovid copy Amphion tiled frame buffer for un-active video track */
   /* also to avoid copy Hantro frame buffer when link v4l2 decoder with fakesink */
-  if (imx_chip_code () >= CC_MX8QM) {
-    can_share_own_pool = TRUE;
-    if (min < GST_V4L2_MIN_BUFFERS (obj))
-      min = GST_V4L2_MIN_BUFFERS (obj);
-  }
+  can_share_own_pool = TRUE;
+  if (min < GST_V4L2_MIN_BUFFERS (obj))
+    min = GST_V4L2_MIN_BUFFERS (obj);
 
   gst_v4l2_get_driver_min_buffers (obj);
   /* We can't share our own pool, if it exceed V4L2 capacity */

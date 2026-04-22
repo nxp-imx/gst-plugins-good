@@ -40,7 +40,6 @@
 #include "gst/video/gstvideopool.h"
 #include "gst/allocators/gstdmabuf.h"
 #include "gst/video/gstphymemmeta.h"
-#include "gstimxcommon.h"
 
 #include <gstv4l2bufferpool.h>
 
@@ -1500,11 +1499,21 @@ gst_v4l2_buffer_pool_dqbuf (GstV4l2BufferPool * pool, GstBuffer ** buffer,
   GST_BUFFER_OFFSET (outbuf) = group->buffer.sequence;
   GST_BUFFER_OFFSET_END (outbuf) = group->buffer.sequence + 1;
 
-  if (IS_IMX8MQ () && obj->drm_modifier != 0
-      && !V4L2_TYPE_IS_OUTPUT (obj->type)) {
-    pmeta = GST_PHY_MEM_META_ADD (outbuf);
-    pmeta->rfc_luma_offset = group->buffer.reserved;
-    pmeta->rfc_chroma_offset = group->buffer.reserved2;
+  if (obj->drm_modifier != 0 && !V4L2_TYPE_IS_OUTPUT (obj->type)) {
+    GstElement *soc = NULL;
+    gboolean is_mx8mq = FALSE;
+
+    soc = gst_element_factory_make ("imxsocfeatures", NULL);
+    if (soc) {
+      g_signal_emit_by_name (soc, "is-chip", "MX8MQ", &is_mx8mq);
+      gst_object_unref (soc);
+    }
+
+    if (is_mx8mq) {
+      pmeta = GST_PHY_MEM_META_ADD (outbuf);
+      pmeta->rfc_luma_offset = group->buffer.reserved;
+      pmeta->rfc_chroma_offset = group->buffer.reserved2;
+    }
   }
 
 done:
