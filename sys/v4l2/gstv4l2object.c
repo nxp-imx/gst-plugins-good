@@ -682,6 +682,7 @@ gst_v4l2_object_new (GstElement * element,
   g_atomic_int_set (&v4l2object->seek, FALSE);
 
   v4l2object->set_bitrate = FALSE;
+  v4l2object->cut_to_8bit = FALSE;
 
   /* We now disable libv4l2 by default, but have an env to enable it. */
 #ifdef HAVE_LIBV4L2
@@ -5050,6 +5051,11 @@ gst_v4l2_object_acquire_format (GstV4l2Object * v4l2object,
   fmt.type = v4l2object->type;
   if (v4l2object->ioctl (v4l2object->video_fd, VIDIOC_G_FMT, &fmt) < 0)
     goto get_fmt_failed;
+
+  if (fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_P010) {
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_NV12;
+    v4l2object->cut_to_8bit = TRUE;
+  }
 
   fmtdesc = gst_v4l2_object_get_format_from_fourcc (v4l2object,
       fmt.fmt.pix.pixelformat);

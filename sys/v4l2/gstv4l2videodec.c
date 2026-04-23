@@ -624,7 +624,8 @@ gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
    * that we preserves the bit depth, as we don't have any fancy fixation
    * process */
   if (acquired_drm_caps) {
-    if (gst_caps_is_subset (acquired_drm_caps, caps)) {
+    if (gst_caps_is_subset (acquired_drm_caps, caps)
+        && !self->v4l2capture->cut_to_8bit) {
       gst_caps_take (&acquired_caps, acquired_drm_caps);
       acquired_drm_caps = NULL;
       goto use_acquired_caps;
@@ -633,7 +634,8 @@ gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
     gst_clear_caps (&acquired_drm_caps);
   }
 
-  if (gst_caps_is_subset (acquired_caps, caps))
+  if (gst_caps_is_subset (acquired_caps, caps)
+      && !self->v4l2capture->cut_to_8bit)
     goto use_acquired_caps;
 
   /* Fixate pixel format */

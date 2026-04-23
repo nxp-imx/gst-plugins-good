@@ -249,6 +249,8 @@ struct _GstV4l2Object {
   guint max_width;
   guint max_height;
 
+  gboolean cut_to_8bit;
+
   struct v4l2_enc_roi_param roi;
 };
 
