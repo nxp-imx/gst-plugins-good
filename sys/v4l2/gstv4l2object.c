@@ -683,6 +683,7 @@ gst_v4l2_object_new (GstElement * element,
 
   v4l2object->set_bitrate = FALSE;
   v4l2object->cut_to_8bit = FALSE;
+  v4l2object->enable_hdr = FALSE;
 
   /* We now disable libv4l2 by default, but have an env to enable it. */
 #ifdef HAVE_LIBV4L2
@@ -6707,7 +6708,14 @@ again:
     if (!gst_v4l2_dequeue_event (v4l2object, &event))
       goto dqevent_failed;
 
-    if (event.type != V4L2_EVENT_SOURCE_CHANGE) {
+    if (event.type == V4L2_EVENT_CTRL) {
+      if (event.id == V4L2_CID_COLORIMETRY_HDR10_CLL_INFO ||
+          event.id == V4L2_CID_COLORIMETRY_HDR10_MASTERING_DISPLAY) {
+        v4l2object->enable_hdr = TRUE;
+        GST_INFO_OBJECT (v4l2object->dbg_obj, "Received HDR10 event.");
+      }
+      goto again;
+    } else if (event.type != V4L2_EVENT_SOURCE_CHANGE) {
       GST_INFO_OBJECT (v4l2object->dbg_obj,
           "Received unhandled event, ignoring.");
       goto again;

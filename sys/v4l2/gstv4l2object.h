@@ -250,6 +250,7 @@ struct _GstV4l2Object {
   guint max_height;
 
   gboolean cut_to_8bit;
+  gboolean enable_hdr;
 
   struct v4l2_enc_roi_param roi;
 };

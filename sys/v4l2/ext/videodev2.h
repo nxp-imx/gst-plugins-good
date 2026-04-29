@@ -1810,18 +1810,6 @@ struct v4l2_ext_controls {
 	struct v4l2_ext_control *controls;
 };
 
-struct v4l2_hdr10_meta {
-	__u32 hasHdr10Meta;
-	__u32 redPrimary[2];
-	__u32 greenPrimary[2];
-	__u32 bluePrimary[2];
-	__u32 whitePoint[2];
-	__u32 maxMasteringLuminance;
-	__u32 minMasteringLuminance;
-	__u32 maxContentLightLevel;
-	__u32 maxFrameAverageLightLevel;
-};
-
 #define V4L2_MAX_ROI_REGIONS            8
 struct v4l2_enc_roi_param {
 	struct v4l2_rect rect;
