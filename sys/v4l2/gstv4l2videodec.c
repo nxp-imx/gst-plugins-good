@@ -627,19 +627,35 @@ gst_v4l2_video_dec_negotiate (GstVideoDecoder * decoder)
    * that we preserves the bit depth, as we don't have any fancy fixation
    * process */
   if (acquired_drm_caps) {
-    if (gst_caps_is_subset (acquired_drm_caps, caps)
-        && !self->v4l2capture->cut_to_8bit) {
+    if (gst_caps_is_subset (acquired_drm_caps, caps)) {
       gst_caps_take (&acquired_caps, acquired_drm_caps);
       acquired_drm_caps = NULL;
+      if (self->v4l2capture->cut_to_8bit) {
+        /* Need to re-set format even though caps are compatible */
+        if (gst_v4l2_object_set_format (self->v4l2capture, acquired_caps,
+                &error)) {
+          info = self->v4l2capture->info;
+        } else {
+          gst_v4l2_clear_error (&error);
+        }
+      }
       goto use_acquired_caps;
     }
 
     gst_clear_caps (&acquired_drm_caps);
   }
 
-  if (gst_caps_is_subset (acquired_caps, caps)
-      && !self->v4l2capture->cut_to_8bit)
+  if (gst_caps_is_subset (acquired_caps, caps)) {
+    if (self->v4l2capture->cut_to_8bit) {
+      /* Need to re-set format even though caps are compatible */
+      if (gst_v4l2_object_set_format (self->v4l2capture, acquired_caps, &error)) {
+        info = self->v4l2capture->info;
+      } else {
+        gst_v4l2_clear_error (&error);
+      }
+    }
     goto use_acquired_caps;
+  }
 
   /* Fixate pixel format */
   caps = gst_caps_fixate (caps);
